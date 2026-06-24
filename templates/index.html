@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stock Price Predictor - AI/ML Project</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+  header { background: linear-gradient(135deg, #1e3a5f, #0f172a); padding: 20px 40px; border-bottom: 1px solid #1e40af; }
+  header h1 { font-size: 1.8rem; color: #60a5fa; }
+  header p { color: #94a3b8; font-size: 0.9rem; margin-top: 4px; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+  .card { background: #1e293b; border-radius: 12px; padding: 24px; border: 1px solid #334155; }
+  .card h2 { font-size: 1.1rem; color: #60a5fa; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
+  label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 6px; margin-top: 14px; }
+  input, select { width: 100%; padding: 10px 14px; background: #0f172a; border: 1px solid #334155;
+    border-radius: 8px; color: #e2e8f0; font-size: 0.95rem; }
+  input:focus, select:focus { outline: none; border-color: #3b82f6; }
+  .btn { width: 100%; padding: 12px; background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    border: none; border-radius: 8px; color: white; font-size: 1rem; cursor: pointer;
+    margin-top: 20px; font-weight: 600; transition: all 0.2s; }
+  .btn:hover { background: linear-gradient(135deg, #3b82f6, #2563eb); transform: translateY(-1px); }
+  .result-box { background: #0f172a; border-radius: 10px; padding: 20px; margin-top: 20px; border: 1px solid #1e40af; display: none; }
+  .result-box.show { display: block; }
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; }
+  .metric { text-align: center; }
+  .metric .label { font-size: 0.78rem; color: #64748b; }
+  .metric .value { font-size: 1.5rem; font-weight: 700; margin-top: 4px; }
+  .buy { color: #22c55e; } .sell { color: #ef4444; }
+  .signal-badge { display: inline-block; padding: 6px 18px; border-radius: 20px; font-weight: 700;
+    font-size: 1.1rem; margin: 10px auto; }
+  .signal-buy { background: #14532d; color: #22c55e; }
+  .signal-sell { background: #450a0a; color: #ef4444; }
+  .chart-card { grid-column: 1 / -1; }
+  .tag { background: #1e40af; color: #93c5fd; padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; }
+  .info-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0;
+    border-bottom: 1px solid #1e293b; font-size: 0.88rem; }
+  .info-row:last-child { border-bottom: none; }
+  @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } .chart-card { grid-column: 1; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>📈 Stock Price Predictor</h1>
+  <p>AI/ML Internship Project &nbsp;|&nbsp; Linear Regression + Random Forest &nbsp;|&nbsp; AAPL Dataset</p>
+</header>
+<div class="container">
+  <div class="grid">
+    <!-- Input Form -->
+    <div class="card">
+      <h2>🔢 Enter Stock Features</h2>
+      <label>Open Price ($)</label>
+      <input type="number" id="open" placeholder="e.g. 178.50" step="0.01" value="178.50">
+      <label>High Price ($)</label>
+      <input type="number" id="high" placeholder="e.g. 180.00" step="0.01" value="180.00">
+      <label>Low Price ($)</label>
+      <input type="number" id="low" placeholder="e.g. 176.00" step="0.01" value="176.00">
+      <label>Close Price ($)</label>
+      <input type="number" id="close" placeholder="e.g. 179.20" step="0.01" value="179.20">
+      <label>Volume</label>
+      <input type="number" id="volume" placeholder="e.g. 75000000" value="75000000">
+      <label>Model</label>
+      <select id="model">
+        <option value="linear">Linear Regression</option>
+        <option value="random_forest">Random Forest</option>
+      </select>
+      <button class="btn" onclick="predict()">🚀 Predict Next Day Price</button>
+      <div class="result-box" id="resultBox">
+        <div style="text-align:center;">
+          <div id="signalBadge" class="signal-badge"></div>
+          <div style="font-size:0.82rem; color:#64748b; margin-top:4px;" id="modelUsed"></div>
+        </div>
+        <div class="result-grid">
+          <div class="metric">
+            <div class="label">Current Price</div>
+            <div class="value" id="currentPrice" style="color:#60a5fa;"></div>
+          </div>
+          <div class="metric">
+            <div class="label">Predicted Price</div>
+            <div class="value" id="predPrice" style="color:#f59e0b;"></div>
+          </div>
+          <div class="metric">
+            <div class="label">Change ($)</div>
+            <div class="value" id="change"></div>
+          </div>
+          <div class="metric">
+            <div class="label">Change (%)</div>
+            <div class="value" id="pctChange"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Project Info -->
+    <div class="card">
+      <h2>📚 Project Overview <span class="tag">AI/ML</span></h2>
+      <div class="info-row"><span>Dataset</span><strong>AAPL Stock (2018–2024)</strong></div>
+      <div class="info-row"><span>Records</span><strong>1,770+ trading days</strong></div>
+      <div class="info-row"><span>Model 1</span><strong>Linear Regression</strong></div>
+      <div class="info-row"><span>Model 2</span><strong>Random Forest</strong></div>
+      <div class="info-row"><span>LR R² Score</span><strong style="color:#22c55e;">~0.99</strong></div>
+      <div class="info-row"><span>Target</span><strong>Next Day Close Price</strong></div>
+      <div class="info-row"><span>Deployed On</span><strong>Render (Cloud)</strong></div>
+      <div style="margin-top:18px;">
+        <div style="font-size:0.85rem; color:#94a3b8; margin-bottom:10px;">Features Used:</div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+          <span class="tag">Open</span><span class="tag">High</span><span class="tag">Low</span>
+          <span class="tag">Close</span><span class="tag">Volume</span><span class="tag">MA-10</span>
+          <span class="tag">MA-30</span><span class="tag">MA-50</span><span class="tag">Returns</span>
+          <span class="tag">Volatility</span><span class="tag">Lag-1</span><span class="tag">Lag-3</span>
+        </div>
+      </div>
+      <div style="margin-top:20px; background:#0f172a; border-radius:8px; padding:14px; border-left:3px solid #3b82f6;">
+        <div style="font-size:0.82rem; color:#94a3b8;">
+          ⚠️ <strong style="color:#fbbf24;">Disclaimer:</strong> This project is for educational purposes only.
+          Do not use for actual trading decisions.
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="card chart-card">
+      <h2>📊 Historical Close Price (Last 90 Days)</h2>
+      <canvas id="priceChart" height="80"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+async function predict() {
+  const open = document.getElementById('open').value;
+  const high = document.getElementById('high').value;
+  const low = document.getElementById('low').value;
+  const close = document.getElementById('close').value;
+  const volume = document.getElementById('volume').value;
+  const model = document.getElementById('model').value;
+
+  const res = await fetch('/predict', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ open, high, low, close, volume, model })
+  });
+  const data = await res.json();
+  if (data.error) { alert('Error: ' + data.error); return; }
+
+  document.getElementById('currentPrice').textContent = '$' + data.current_price;
+  document.getElementById('predPrice').textContent = '$' + data.prediction;
+  const chEl = document.getElementById('change');
+  const pctEl = document.getElementById('pctChange');
+  chEl.textContent = (data.change >= 0 ? '+' : '') + data.change;
+  pctEl.textContent = (data.pct_change >= 0 ? '+' : '') + data.pct_change + '%';
+  chEl.className = 'value ' + (data.change >= 0 ? 'buy' : 'sell');
+  pctEl.className = 'value ' + (data.pct_change >= 0 ? 'buy' : 'sell');
+  const badge = document.getElementById('signalBadge');
+  badge.textContent = data.signal === 'BUY' ? '📈 BUY SIGNAL' : '📉 SELL SIGNAL';
+  badge.className = 'signal-badge ' + (data.signal === 'BUY' ? 'signal-buy' : 'signal-sell');
+  document.getElementById('modelUsed').textContent = 'Model: ' + data.model.replace('_', ' ').toUpperCase();
+  document.getElementById('resultBox').className = 'result-box show';
+}
+
+async function loadChart() {
+  const res = await fetch('/history');
+  const data = await res.json();
+  const labels = data.map(d => d.Date.slice(0, 10));
+  const closes = data.map(d => d.Close);
+  const ma10 = data.map(d => d.MA_10);
+  const ma30 = data.map(d => d.MA_30);
+  new Chart(document.getElementById('priceChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Close', data: closes, borderColor: '#60a5fa', borderWidth: 2, pointRadius: 0, tension: 0.3 },
+        { label: 'MA-10', data: ma10, borderColor: '#f59e0b', borderWidth: 1.5, pointRadius: 0, tension: 0.3, borderDash: [4,4] },
+        { label: 'MA-30', data: ma30, borderColor: '#a78bfa', borderWidth: 1.5, pointRadius: 0, tension: 0.3, borderDash: [8,4] },
+      ]
+    },
+    options: {
+      plugins: { legend: { labels: { color: '#94a3b8', boxWidth: 12 } } },
+      scales: {
+        x: { ticks: { color: '#64748b', maxTicksLimit: 8 }, grid: { color: '#1e293b' } },
+        y: { ticks: { color: '#64748b' }, grid: { color: '#1e293b' } }
+      }
+    }
+  });
+}
+loadChart();
+</script>
+</body>
+</html>
